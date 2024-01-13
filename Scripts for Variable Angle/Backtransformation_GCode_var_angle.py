@@ -5,7 +5,7 @@ import time
 # -----------------------------------------------------------------------------------------
 # Transformation Settings
 # -----------------------------------------------------------------------------------------
-FILE_NAME = 'tower_01_B.gcode'      # filename including extension
+FILE_NAME = '3.5x2.5x3 CCW_outward_16deg_transformed_PLA_19m31s.gcode'      # filename including extension
 FOLDER_NAME = 'gcodes/'                              # name of the subfolder in which the gcode is located
 CONE_ANGLE = 16                                      # transformation angle
 CONE_TYPE = 'outward'                                # type of the cone: 'inward' & 'outward'
