@@ -5,7 +5,7 @@ import time
 # -----------------------------------------------------------------------------------------
 # Transformation Settings
 # -----------------------------------------------------------------------------------------
-FILE_NAME = '3.5x2.5x3 CCW_outward_16deg_transformed_PLA_19m31s.gcode'      # filename including extension
+FILE_NAME = '3.5x2.5x3 CCW V5.gcode'      # filename including extension
 FOLDER_NAME = 'gcodes/'                              # name of the subfolder in which the gcode is located
 CONE_ANGLE = 16                                      # transformation angle
 CONE_TYPE = 'outward'                                # type of the cone: 'inward' & 'outward'
@@ -13,7 +13,22 @@ FIRST_LAYER_HEIGHT = 0.2                            # moves all the gcode up to 
 X_SHIFT = 110                                       # moves your gcode away from the origin into the center of the bed (usually bed size / 2)
 Y_SHIFT = 90
 
-
+START_GCODE = '''
+G28 ; home all axes
+G1 Z10 ; rise head to move in middle without collision
+G1 X100 Y100 ; move in middle of bed
+G1 Z2 ; lower head
+G92 E0 ; reset extrusion distance
+M117 NG printing..
+'''
+END_GCODE = '''
+M104 S0 T0 ; shutdown extruder T0
+M104 S0 T1 ; shutdown extruder T1
+M140 S0 ; shutdown bed
+G1 Z200 ; lower bed
+G28 X0 Y0 ; home X and Y
+M84 ; communicate program end
+'''
 def insert_Z(row, z_value):
     """
     Insert or replace the z-value in a row. The new z-value must be given.
@@ -371,6 +386,8 @@ def backtransform_file(path, cone_type, maximal_length, angle_comp, x_shift, y_s
     data_bt = [row + ' \n' for row in data_bt_string.split('\n')]
     data_bt = translate_data(data_bt, cone_type, x_shift, y_shift, z_desired, e_parallel, e_perpendicular)
     data_bt_string = ''.join(data_bt)
+
+    data_bt_string = START_GCODE + data_bt_string + END_GCODE
 
     path_write = re.sub(r'gcodes', 'gcodes_backtransformed', path)
     path_write = re.sub(r'.gcode', '_bt_' + cone_type + '_' + angle_comp + '.gcode', path_write)
