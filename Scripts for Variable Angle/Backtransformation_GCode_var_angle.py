@@ -4,8 +4,8 @@ import time
 
 # -----------------------------------------------------------------------------------------
 # Transformation Settings
-# -----------------------------------------------------------------------------------------
-FILE_NAME = '3.5x2.5x3 CCW V5.gcode'      # filename including extension
+# ----------------------------------------------------------------------------------------
+FILE_NAME = 'Tor_Prop_5in002_outward_16deg_transformed_PLA_1h6m.gcode'      # filename including extension
 FOLDER_NAME = 'gcodes/'                              # name of the subfolder in which the gcode is located
 CONE_ANGLE = 16                                      # transformation angle
 CONE_TYPE = 'outward'                                # type of the cone: 'inward' & 'outward'
@@ -387,6 +387,8 @@ def backtransform_file(path, cone_type, maximal_length, angle_comp, x_shift, y_s
     data_bt = translate_data(data_bt, cone_type, x_shift, y_shift, z_desired, e_parallel, e_perpendicular)
     data_bt_string = ''.join(data_bt)
 
+
+    # todo: split after line with M104
     data_bt_string = START_GCODE + data_bt_string + END_GCODE
 
     path_write = re.sub(r'gcodes', 'gcodes_backtransformed', path)

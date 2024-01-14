@@ -9,7 +9,7 @@ import os
 
 cur_dir = dir_path = os.path.dirname(os.path.realpath(__file__))
 
-FILE_NAME = '3.5x2.5x3 CCW'                       # Filename without extension
+FILE_NAME = 'Tor_Prop_5in002'                       # Filename without extension
 FOLDER_NAME_UNTRANSFORMED = os.path.join(cur_dir, 'stl')
 FOLDER_NAME_TRANSFORMED =os.path.join(cur_dir,  'stl_transformed')    # Make sure this folder exists
 CONE_ANGLE = 16                                 # Transformation angle
