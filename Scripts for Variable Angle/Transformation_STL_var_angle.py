@@ -1,45 +1,54 @@
+from typing import List
+
 import numpy as np
 from stl import mesh
 import time
 import os
+import settings
+from common import ConeType
 
-#-----------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------
 # Transformation Settings
-#-----------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------
 
 cur_dir = dir_path = os.path.dirname(os.path.realpath(__file__))
 
-FILE_NAME = 'Tor_Prop_5in002'                       # Filename without extension
-FOLDER_NAME_UNTRANSFORMED = os.path.join(cur_dir, 'stl')
-FOLDER_NAME_TRANSFORMED =os.path.join(cur_dir,  'stl_transformed')    # Make sure this folder exists
-CONE_ANGLE = 16                                 # Transformation angle
-REFINEMENT_ITERATIONS = 1                       # refinement iterations of the stl. 2-3 is a good start for regular stls. If its already uniformaly fine, use 0 or 1. High number cause huge models and long script runtimes
-TRANSFORMATION_TYPE = 'outward'                 # type of the cone: 'inward' & 'outward'
+FILE_NAME = settings.STL_FILE_NAME
+FOLDER_NAME_UNTRANSFORMED = os.path.join(cur_dir, settings.STL_FOLDER_NAME_UNTRANSFORMED)
+FOLDER_NAME_TRANSFORMED = os.path.join(cur_dir, settings.STL_FOLDER_NAME_TRANSFORMED)
+CONE_ANGLE = settings.CONE_ANGLE
+REFINEMENT_ITERATIONS = settings.REFINEMENT_ITERATIONS
+TRANSFORMATION_TYPE = settings.TRANSFORMATION_TYPE
 
 
-def transformation_kegel(points, cone_angle_rad, cone_type):
+if not os.path.exists(FOLDER_NAME_TRANSFORMED):
+    os.mkdir(FOLDER_NAME_TRANSFORMED)
+
+def transformation_kegel(points: np.ndarray, cone_angle_rad: float, cone_type: ConeType):
     """
     Computes the cone-transformation (x', y', z') = (x / cos(angle), y / cos(angle), z + \sqrt{x^{2} + y^{2}} * tan(angle))
     for a list of points
+    :param cone_angle_rad: angle in rad
     :param points: array
         array of points of shape ( , 3)
-    :param cone_type: string
-        String, either 'outward' or 'inward', defines which transformation should be used
+    :param cone_type: ConeType
+        Enum entry, either 'ConeType.OUTWARD' or 'ConeType.INWARD', defines which transformation should be used
     :return: array
         array of transformed points, of same shape as input array
     """
-    if cone_type == 'outward':
+    if cone_type == ConeType.OUTWARD:
         c = 1
-    elif cone_type == 'inward':
+    elif cone_type == ConeType.INWARD:
         c = -1
     else:
         raise ValueError('{} is not a admissible type for the transformation'.format(cone_type))
-    f = (lambda x, y, z: np.array([x/np.cos(cone_angle_rad), y/np.cos(cone_angle_rad), z + c * np.sqrt(x**2 + y**2)*np.tan(cone_angle_rad)]))
+    f = (lambda x, y, z: np.array([x / np.cos(cone_angle_rad), y / np.cos(cone_angle_rad),
+                                   z + c * np.sqrt(x ** 2 + y ** 2) * np.tan(cone_angle_rad)]))
     points_transformed = list(map(f, points[:, 0], points[:, 1], points[:, 2]))
     return np.array(points_transformed)
 
 
-def refinement_four_triangles(triangle):
+def refinement_four_triangles(triangle: List):
     """
     Compute a refinement of a triangle. On every side, the midpoint is added. The three corner points and three
     midpoints result in four smaller triangles.
@@ -61,7 +70,7 @@ def refinement_four_triangles(triangle):
     return np.array([triangle1, triangle2, triangle3, triangle4])
 
 
-def refinement_triangulation(triangle_array, num_iterations):
+def refinement_triangulation(triangle_array: List, num_iterations: int):
     """
     Compute a refinement of a triangulation using the refinement_four_triangles function.
     The number of iteration defines, how often the triangulation has to be refined; n iterations lead to
@@ -74,19 +83,19 @@ def refinement_triangulation(triangle_array, num_iterations):
     """
     refined_array = triangle_array
     for i in range(0, num_iterations):
-        n_triangles = refined_array.shape[0]*4
+        n_triangles = refined_array.shape[0] * 4
         refined_array = np.array(list(map(refinement_four_triangles, refined_array)))
         refined_array = np.reshape(refined_array, (n_triangles, 3, 3))
     return refined_array
 
 
-def transformation_STL_file(path, cone_type, cone_angle_deg, nb_iterations):
+def transformation_STL_file(path: str, cone_type: ConeType, cone_angle_deg: float, nb_iterations: int):
     """
     Read a stl-file, refine the triangulation and transform it according to the cone-transformation
     :param path: string
         path to the stl file
-    :param cone_type: string
-        String, either 'outward' or 'inward', defines which transformation should be used
+    :param cone_type: ConeType
+        enum entry, either 'ConeType.OUTWARD' or 'ConeType.INWARD', defines which transformation should be used
     :param cone_angle: int
         angle to transform the part
     :param nb_iterations: int
@@ -106,10 +115,15 @@ def transformation_STL_file(path, cone_type, cone_angle_deg, nb_iterations):
     my_mesh_transformed = mesh.Mesh(my_mesh_transformed)
     return my_mesh_transformed
 
+
 startzeit = time.time()
 print(os.path.join(FOLDER_NAME_UNTRANSFORMED, FILE_NAME + '.stl'))
-print(os.path.join(FOLDER_NAME_TRANSFORMED, FILE_NAME + '_' + TRANSFORMATION_TYPE + '_' + str(CONE_ANGLE) + 'deg_transformed.stl'))
-transformed_STL = transformation_STL_file(path=os.path.join(FOLDER_NAME_UNTRANSFORMED, FILE_NAME + '.stl'), cone_type=TRANSFORMATION_TYPE, cone_angle_deg=CONE_ANGLE, nb_iterations=REFINEMENT_ITERATIONS)
-transformed_STL.save(os.path.join(FOLDER_NAME_TRANSFORMED, FILE_NAME + '_' + TRANSFORMATION_TYPE + '_' + str(CONE_ANGLE) + 'deg_transformed.stl'))
+print(os.path.join(FOLDER_NAME_TRANSFORMED,
+                   FILE_NAME + '_' + TRANSFORMATION_TYPE + '_' + str(CONE_ANGLE) + 'deg_transformed.stl'))
+transformed_STL = transformation_STL_file(path=os.path.join(FOLDER_NAME_UNTRANSFORMED, FILE_NAME + '.stl'),
+                                          cone_type=TRANSFORMATION_TYPE, cone_angle_deg=CONE_ANGLE,
+                                          nb_iterations=REFINEMENT_ITERATIONS)
+transformed_STL.save(os.path.join(FOLDER_NAME_TRANSFORMED, FILE_NAME + '_' + TRANSFORMATION_TYPE + '_' + str(
+    CONE_ANGLE) + 'deg_transformed.stl'))
 endzeit = time.time()
 print('Transformation time:', endzeit - startzeit)

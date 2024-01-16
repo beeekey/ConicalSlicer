@@ -1,35 +1,27 @@
 import re
+from typing import List
+
 import numpy as np
 import time
+import settings
+from common import ConeType, AngleCompensation
 
 # -----------------------------------------------------------------------------------------
 # Transformation Settings
 # ----------------------------------------------------------------------------------------
-FILE_NAME = 'Tor_Prop_5in002_outward_16deg_transformed_PLA_1h6m.gcode'      # filename including extension
-FOLDER_NAME = 'gcodes/'                              # name of the subfolder in which the gcode is located
-CONE_ANGLE = 16                                      # transformation angle
-CONE_TYPE = 'outward'                                # type of the cone: 'inward' & 'outward'
-FIRST_LAYER_HEIGHT = 0.2                            # moves all the gcode up to this height. Use also for stacking
-X_SHIFT = 110                                       # moves your gcode away from the origin into the center of the bed (usually bed size / 2)
-Y_SHIFT = 90
+FILE_NAME = settings.GCODE_FILENAME
+FOLDER_NAME = settings.GCODE_FOLDERNAME
+CONE_ANGLE = settings.CONE_ANGLE
+CONE_TYPE = settings.CONE_TYPE
+FIRST_LAYER_HEIGHT = settings.FIRST_LAYER_HEIGHT
+X_SHIFT = settings.BED_WIDTH_X / 2
+Y_SHIFT = settings.BED_DEPTH_Y / 2
 
-START_GCODE = '''
-G28 ; home all axes
-G1 Z10 ; rise head to move in middle without collision
-G1 X100 Y100 ; move in middle of bed
-G1 Z2 ; lower head
-G92 E0 ; reset extrusion distance
-M117 NG printing..
-'''
-END_GCODE = '''
-M104 S0 T0 ; shutdown extruder T0
-M104 S0 T1 ; shutdown extruder T1
-M140 S0 ; shutdown bed
-G1 Z200 ; lower bed
-G28 X0 Y0 ; home X and Y
-M84 ; communicate program end
-'''
-def insert_Z(row, z_value):
+START_GCODE = settings.START_GCODE
+END_GCODE = settings.END_GCODE
+
+
+def insert_Z(row: str, z_value: float) -> str:
     """
     Insert or replace the z-value in a row. The new z-value must be given.
     :param row: string
@@ -58,7 +50,7 @@ def insert_Z(row, z_value):
     return row_new
 
 
-def replace_E(row, dist_old, dist_new, corr_value):
+def replace_E(row: str, dist_old: float, dist_new: float, corr_value: float) -> List:
     """
     Replace the amount of extruded filament in a row. The new amount is proportional to the old amount, where
     the factor is obtained by the ratio of new distance to old distance. (wuem: Due to the transformation, the amount has to be
@@ -88,7 +80,7 @@ def replace_E(row, dist_old, dist_new, corr_value):
     return row_new
 
 
-def compute_angle_radial(x_old, y_old, x_new, y_new, inward_cone):
+def compute_angle_radial(x_old: float, y_old: float, x_new: float, y_new: float, inward_cone: bool) -> float:
     """
     Compute the angle of the printing head, when moving from an old point [x_old, y_old] to a new point [x_new, y_new].
     (Note: the z-value is not considered for the orientation of the printing head.) The direction is given by the
@@ -113,10 +105,7 @@ def compute_angle_radial(x_old, y_old, x_new, y_new, inward_cone):
     return angle
 
 
-
-
-
-def compute_U_values(angle_array):
+def compute_U_values(angle_array: List) -> List:
     """
     Compute the U-values, which will be inserted, according to given angle values.
     The U-values are computed such that there are no discontinuous jumps from pi to -pi.
@@ -138,7 +127,7 @@ def compute_U_values(angle_array):
     return angle_insert
 
 
-def insert_U(row, angle):
+def insert_U(row: str, angle: float) -> str:
     """
     Insert or replace the U-value in a row, where the U-values describes the orientation of the printing head.
     :param row: string
@@ -161,7 +150,7 @@ def insert_U(row, angle):
     return row_new
 
 
-def backtransform_data_radial(data, cone_type, maximal_length, cone_angle_rad):
+def backtransform_data_radial(data: List, cone_type: CONE_TYPE, maximal_length: float, cone_angle_rad: float):
     """
     Backtransform GCode, which is given in a list, each element describing a row. Rows which describe a movement
     are detected, x-, y-, z-, E- and U-values are replaced accordingly to the transformation. If a original segment
@@ -171,7 +160,7 @@ def backtransform_data_radial(data, cone_type, maximal_length, cone_angle_rad):
     :param data: list
         List of strings, describing each line of the GCode, which is to be backtransformed
     :param cone_type: string
-        String, either 'outward' or 'inward', defines which transformation should be used
+        Enum entry, either 'ConeType.OUTWARD' or 'ConeType.INWARD', defines which transformation should be used
     :param maximal_length: float
         Maximal length of a segment in the original GCode; every longer segment is divided, such that the resulting
         segments are shorter than maximal_length
@@ -192,10 +181,10 @@ def backtransform_data_radial(data, cone_type, maximal_length, cone_angle_rad):
     z_layer = 0
     z_max = 0
     update_x, update_y = False, False
-    if cone_type == 'outward':
+    if cone_type == ConeType.OUTWARD:
         c = -1
         inward_cone = False
-    elif cone_type == 'inward':
+    elif cone_type == ConeType.INWARD:
         c = 1
         inward_cone = True
     else:
@@ -240,11 +229,13 @@ def backtransform_data_radial(data, cone_type, maximal_length, cone_angle_rad):
                     z_end = z_layer + c * np.sqrt(x_new_bt ** 2 + y_new_bt ** 2) * np.tan(cone_angle_rad)
                     z_vals = np.linspace(z_start, z_end, num_segm + 1)
                 else:
-                    z_vals = np.array([z_layer + c * np.sqrt(x ** 2 + y ** 2) * np.tan(cone_angle_rad) for x, y in zip(x_vals, y_vals)])
+                    z_vals = np.array([z_layer + c * np.sqrt(x ** 2 + y ** 2) * np.tan(cone_angle_rad) for x, y in
+                                       zip(x_vals, y_vals)])
                     if e_match and (np.max(z_vals) > z_max or z_max == 0):
-                        z_max = np.max(z_vals) # save hightes point with material extruded
+                        z_max = np.max(z_vals)  # save hightes point with material extruded
                     if e_match is None and np.max(z_vals) > z_max:
-                        np.minimum(z_vals, (z_max + 1), z_vals) # cut away all travel moves, that are higher than max height extruded + 1 mm safety
+                        np.minimum(z_vals, (z_max + 1),
+                                   z_vals)  # cut away all travel moves, that are higher than max height extruded + 1 mm safety
                         # das hier könnte noch verschönert werden, in dem dann eine alle abgeschnittenen Werte mit einer einer geraden Linie ersetzt werden
 
                 distances_transformed = dist_transformed / num_segm * np.ones(num_segm)
@@ -276,17 +267,17 @@ def backtransform_data_radial(data, cone_type, maximal_length, cone_angle_rad):
     return new_data
 
 
-
-def translate_data(data, cone_type, translate_x, translate_y, z_desired, e_parallel, e_perpendicular):
+def translate_data(data: List, cone_type: CONE_TYPE, translate_x: float, translate_y: float, z_desired: float,
+                   e_parallel: float, e_perpendicular: float) -> List:
     """
     Translate the GCode in x- and y-direction. Only the lines, which describe a movement will be translated.
     Additionally, if z_translation is True, the z-values will be translated such that the minimal z-value is z_desired.
-    This happens by traversing the list of strings twice. If cone_type is 'inward', it is assured, that all moves
+    This happens by traversing the list of strings twice. If cone_type is 'ConeType.INWARD', it is assured, that all moves
     with no extrusion have at least a hight of z_desired.
     :param data: list
         List of strings, containing the GCode
     :param cone_type: string
-        String, either 'outward' or 'inward', defines which transformation should be used
+        Enum entry, either 'ConeType.OUTWARD' or 'ConeType.INWARD', defines which transformation should be used
     :param translate_x: float
         Float, which describes the translation in x-direction
     :param translate_y: float
@@ -334,10 +325,12 @@ def translate_data(data, cone_type, translate_x, translate_y, z_desired, e_paral
 
         else:
             if x_match is not None:
-                x_val = round(float(x_match.group(0).replace('X', '')) + translate_x - (e_parallel * np.cos(u_val)) + (e_perpendicular * np.sin(u_val)), 3)
+                x_val = round(float(x_match.group(0).replace('X', '')) + translate_x - (e_parallel * np.cos(u_val)) + (
+                        e_perpendicular * np.sin(u_val)), 3)
                 row = re.sub(pattern_X, 'X' + str(x_val), row)
             if y_match is not None:
-                y_val = round(float(y_match.group(0).replace('Y', '')) + translate_y - (e_parallel * np.sin(u_val)) - (e_perpendicular * np.cos(u_val)), 3)
+                y_val = round(float(y_match.group(0).replace('Y', '')) + translate_y - (e_parallel * np.sin(u_val)) - (
+                        e_perpendicular * np.cos(u_val)), 3)
                 row = re.sub(pattern_Y, 'Y' + str(y_val), row)
             if z_match is not None:
                 z_val = max(round(float(z_match.group(0).replace('Z', '')) + z_translate, 3), z_desired)
@@ -348,17 +341,20 @@ def translate_data(data, cone_type, translate_x, translate_y, z_desired, e_paral
     return new_data
 
 
-def backtransform_file(path, cone_type, maximal_length, angle_comp, x_shift, y_shift, cone_angle_deg, z_desired, e_parallel, e_perpendicular):
+def backtransform_file(path: str, cone_type: CONE_TYPE, maximal_length: float, angle_comp, x_shift: float,
+                       y_shift: float, cone_angle_deg: float, z_desired: float,
+                       e_parallel: float, e_perpendicular: float):
     """
     Read GCode from file, backtransform and translate it.
     :param path: string
         String with the path to the GCode-file
     :param cone_type: string
-        String, either 'outward' or 'inward', defines which transformation should be used
+        Enum entry, either 'ConeType.OUTWARD' or 'ConeType.INWARD', defines which transformation should be used
     :param maximal_length: float
         Maximal length of a segment in the original GCode
-    :param angle_comp: string
-        String, which describes the way, the angle is computed; one of 'radial', 'tangential', 'mixed'
+    :param angle_comp: AngleCompensation
+        Enum entry, which describes the way, the angle is computed; one of 'AngleCompensation.RADIAL',
+        'AngleCompensation.TANGENTIAL', 'AngleCompensation.MIXED'
     :param x_shift: float
         Float, which describes the translation in x-direction
     :param y_shift: float
@@ -373,10 +369,10 @@ def backtransform_file(path, cone_type, maximal_length, angle_comp, x_shift, y_s
         Error perpendicular to nozzle
     :return: None
     """
-    
+
     cone_angle_rad = cone_angle_deg / 180 * np.pi
 
-    if angle_comp == 'radial':
+    if angle_comp == AngleCompensation.RADIAL:
         backtransform_data = backtransform_data_radial
 
     with open(path, 'r') as f_gcode:
@@ -386,7 +382,6 @@ def backtransform_file(path, cone_type, maximal_length, angle_comp, x_shift, y_s
     data_bt = [row + ' \n' for row in data_bt_string.split('\n')]
     data_bt = translate_data(data_bt, cone_type, x_shift, y_shift, z_desired, e_parallel, e_perpendicular)
     data_bt_string = ''.join(data_bt)
-
 
     # todo: split after line with M104
     data_bt_string = START_GCODE + data_bt_string + END_GCODE
@@ -400,8 +395,10 @@ def backtransform_file(path, cone_type, maximal_length, angle_comp, x_shift, y_s
 
     return None
 
+
 starttime = time.time()
-backtransform_file(path=FOLDER_NAME + FILE_NAME, cone_type=CONE_TYPE, maximal_length=0.5, angle_comp='radial', x_shift=X_SHIFT, y_shift=Y_SHIFT,
+backtransform_file(path=FOLDER_NAME + FILE_NAME, cone_type=CONE_TYPE, maximal_length=0.5, angle_comp=AngleCompensation.radial,
+                   x_shift=X_SHIFT, y_shift=Y_SHIFT,
                    cone_angle_deg=CONE_ANGLE, z_desired=FIRST_LAYER_HEIGHT, e_parallel=0, e_perpendicular=0)
 endtime = time.time()
 print('GCode translated, time used:', endtime - starttime)
