@@ -381,24 +381,36 @@ def backtransform_file(path: str, cone_type: CONE_TYPE, maximal_length: float, a
     data_bt_string = ''.join(data_bt)
     data_bt = [row + ' \n' for row in data_bt_string.split('\n')]
     data_bt = translate_data(data_bt, cone_type, x_shift, y_shift, z_desired, e_parallel, e_perpendicular)
-    data_bt_string = ''.join(data_bt)
+
+
+
 
     # adding start and end gcodes to the gcode
-    data_bt_with_additional_gcodes = ""
-    for line in data_bt_string.split('\n'):
-        if settings.START_GCODE_INSERT_AFTER in line:
-            data_bt_with_additional_gcodes += settings.START_GCODE
 
-        data_bt_with_additional_gcodes += line
+    res = [x for x in data_bt if settings.START_GCODE_INSERT_AFTER in x]
+    idx = data_bt.index(res[0])
 
-    data_bt_with_additional_gcodes += settings.END_GCODE
+    for i, line in enumerate(settings.START_GCODE.split('\n'), 1):
+        data_bt.insert(idx + i, line + '\n')
+
+    data_bt_string = ''.join(data_bt) + settings.END_GCODE
+
+    # data_bt_with_additional_gcodes = ""
+    #
+    # for line in data_bt_string.split('\n'):
+    #     if settings.START_GCODE_INSERT_AFTER in line:
+    #         data_bt_with_additional_gcodes += settings.START_GCODE
+    #
+    #     data_bt_with_additional_gcodes += line
+    #
+    # data_bt_with_additional_gcodes += settings.END_GCODE
 
 
     path_write = re.sub(r'gcodes', 'gcodes_backtransformed', path)
     path_write = re.sub(r'.gcode', '_bt_' + cone_type + '_' + angle_comp + '.gcode', path_write)
     print(path_write)
     with open(path_write, 'w+') as f_gcode_bt:
-        f_gcode_bt.write(data_bt_with_additional_gcodes)
+        f_gcode_bt.write(data_bt_string)
     print('File successfully backtransformed and translated.')
 
     return None
