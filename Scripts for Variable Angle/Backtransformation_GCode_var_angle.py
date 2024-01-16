@@ -383,21 +383,30 @@ def backtransform_file(path: str, cone_type: CONE_TYPE, maximal_length: float, a
     data_bt = translate_data(data_bt, cone_type, x_shift, y_shift, z_desired, e_parallel, e_perpendicular)
     data_bt_string = ''.join(data_bt)
 
-    # todo: split after line with M104
-    data_bt_string = START_GCODE + data_bt_string + END_GCODE
+    # adding start and end gcodes to the gcode
+    data_bt_with_additional_gcodes = ""
+    for line in data_bt_string.split('\n'):
+        if settings.START_GCODE_INSERT_AFTER in line:
+            data_bt_with_additional_gcodes += settings.START_GCODE
+
+        data_bt_with_additional_gcodes += line
+
+    data_bt_with_additional_gcodes += settings.END_GCODE
+
 
     path_write = re.sub(r'gcodes', 'gcodes_backtransformed', path)
     path_write = re.sub(r'.gcode', '_bt_' + cone_type + '_' + angle_comp + '.gcode', path_write)
     print(path_write)
     with open(path_write, 'w+') as f_gcode_bt:
-        f_gcode_bt.write(data_bt_string)
+        f_gcode_bt.write(data_bt_with_additional_gcodes)
     print('File successfully backtransformed and translated.')
 
     return None
 
 
 starttime = time.time()
-backtransform_file(path=FOLDER_NAME + FILE_NAME, cone_type=CONE_TYPE, maximal_length=0.5, angle_comp=AngleCompensation.RADIAL,
+backtransform_file(path=FOLDER_NAME + FILE_NAME, cone_type=CONE_TYPE, maximal_length=0.5,
+                   angle_comp=AngleCompensation.RADIAL,
                    x_shift=X_SHIFT, y_shift=Y_SHIFT,
                    cone_angle_deg=CONE_ANGLE, z_desired=FIRST_LAYER_HEIGHT, e_parallel=0, e_perpendicular=0)
 endtime = time.time()

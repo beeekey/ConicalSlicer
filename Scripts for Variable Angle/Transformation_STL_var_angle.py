@@ -20,9 +20,9 @@ CONE_ANGLE = settings.CONE_ANGLE
 REFINEMENT_ITERATIONS = settings.REFINEMENT_ITERATIONS
 TRANSFORMATION_TYPE = settings.TRANSFORMATION_TYPE
 
-
 if not os.path.exists(FOLDER_NAME_TRANSFORMED):
     os.mkdir(FOLDER_NAME_TRANSFORMED)
+
 
 def transformation_kegel(points: np.ndarray, cone_angle_rad: float, cone_type: ConeType):
     """
