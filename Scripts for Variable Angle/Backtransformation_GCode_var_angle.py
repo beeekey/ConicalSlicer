@@ -397,7 +397,7 @@ def backtransform_file(path: str, cone_type: CONE_TYPE, maximal_length: float, a
 
 
 starttime = time.time()
-backtransform_file(path=FOLDER_NAME + FILE_NAME, cone_type=CONE_TYPE, maximal_length=0.5, angle_comp=AngleCompensation.radial,
+backtransform_file(path=FOLDER_NAME + FILE_NAME, cone_type=CONE_TYPE, maximal_length=0.5, angle_comp=AngleCompensation.RADIAL,
                    x_shift=X_SHIFT, y_shift=Y_SHIFT,
                    cone_angle_deg=CONE_ANGLE, z_desired=FIRST_LAYER_HEIGHT, e_parallel=0, e_perpendicular=0)
 endtime = time.time()
