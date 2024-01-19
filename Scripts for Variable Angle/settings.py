@@ -27,7 +27,7 @@ GCODE_FOLDERNAME= 'gcodes/'             # name of the subfolder in which the gco
 FIRST_LAYER_HEIGHT = 0.2
 BED_WIDTH_X = 200
 BED_DEPTH_Y = 190
-START_GCODE_INSERT_AFTER = "M104"
+START_GCODE_INSERT_AFTER = "M104" # after the first appereance of this GCode, the Start gcode gets inserted
 START_GCODE = '''
 G28 ; home all axes
 G1 Z10 ; rise head to move in middle without collision
